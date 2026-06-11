@@ -26,16 +26,23 @@ echo "→ Backup DB → backups/db-${STAMP}.sql.gz"
 docker compose -p uaemcrm exec -T db pg_dump -U "${DB_USER:-crmuser}" "${DB_NAME:-uaemcrm}" | gzip > "backups/db-${STAMP}.sql.gz"
 echo "  ✓ backup xong ($(du -h "backups/db-${STAMP}.sql.gz" | cut -f1))"
 
-# 3) Kéo image mới + khởi động (migration AN TOÀN tự chạy khi container start)
-USE_CADDY=""
-grep -qE '^APP_DOMAIN=.*yourdomain\.com' .env || USE_CADDY="--profile caddy"
+# 3) Cập nhật file compose từ repo deploy (để nhận thay đổi compose của bản mới)
+BASE="${DEPLOY_BASE_URL:-https://raw.githubusercontent.com/trinhleminhan-vn/uaemcrm-deploy/main}"
+for f in docker-compose.yml docker-compose.proxy.yml Caddyfile; do
+  curl -fsSL "$BASE/$f" -o "$f" 2>/dev/null || true
+done
+
+# 4) Kéo image mới + khởi động đúng CHẾ ĐỘ (caddy / proxy ngoài). Migration tự áp khi start.
+MODE=$(grep -E '^DEPLOY_MODE=' .env | cut -d= -f2- || echo caddy)
 echo "→ Kéo image mới..."
 docker compose pull app
-echo "→ Áp phiên bản mới (migration tự chạy, không mất dữ liệu)..."
-# shellcheck disable=SC2086
-docker compose -p uaemcrm ${USE_CADDY} up -d
+echo "→ Áp phiên bản mới (chế độ: $MODE — migration tự chạy, không mất dữ liệu)..."
+if [ "$MODE" = "caddy" ]; then
+  docker compose -p uaemcrm --profile caddy up -d
+else
+  docker compose -f docker-compose.yml -f docker-compose.proxy.yml -p uaemcrm up -d
+fi
 
-# 4) Dọn image cũ
 docker image prune -f >/dev/null 2>&1 || true
 
 echo "════════════════════════════════════════════"

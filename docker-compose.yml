@@ -1,12 +1,13 @@
 # ════════════════════════════════════════════════════════════════════════════
-# UAEM CRM — docker-compose phát hành (dùng IMAGE dựng sẵn, KHÔNG build từ source)
-# Dành cho khách hàng tự cài trên VPS của họ. Xem README.md cùng thư mục.
+# UAEM CRM — docker-compose phát hành (image dựng sẵn). Xem README.md.
+#   Cài:      ./install.sh        Cập nhật: ./update.sh
 #
-#   Cài đặt:  ./install.sh
-#   Cập nhật: ./update.sh
+# Cổng host: MẶC ĐỊNH chỉ Caddy chiếm 80/443 (HTTPS tự động). db/redis/minio KHÔNG
+# mở cổng host (app gọi nội bộ qua mạng Docker) → không đụng dịch vụ sẵn có của bạn.
 #
-# Reverse proxy + HTTPS: dùng dịch vụ `caddy` (tự xin chứng chỉ Let's Encrypt theo
-# domain). Bật bằng:  docker compose --profile caddy up -d
+# Dùng reverse proxy SẴN CÓ của bạn (không dùng Caddy, vd 80/443 đã bận):
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml -p uaemcrm up -d
+#   → app + minio mở cổng host (APP_PORT/S3_PORT) cho proxy của bạn trỏ vào.
 # ════════════════════════════════════════════════════════════════════════════
 services:
   app:
@@ -14,10 +15,6 @@ services:
     container_name: uaemcrm-app
     restart: unless-stopped
     mem_limit: 768m
-    # Mặc định chỉ mở cổng trên loopback — Caddy proxy ra ngoài. Không dùng Caddy
-    # thì đổi sang "${APP_PORT:-3000}:3000" và tự đặt reverse proxy.
-    ports:
-      - "127.0.0.1:${APP_PORT:-3000}:3000"
     env_file:
       - .env
     environment:
@@ -53,8 +50,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-uaemcrm}
     volumes:
       - pg_data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-crmuser}"]
       interval: 10s
@@ -71,8 +66,6 @@ services:
     command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
-    ports:
-      - "127.0.0.1:6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -90,10 +83,6 @@ services:
       MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD phải đặt trong .env}"
     volumes:
       - minio_data:/data
-    # S3 API (9000) được Caddy proxy ra S3_DOMAIN (HTTPS). Console (9001) chỉ loopback.
-    ports:
-      - "127.0.0.1:${S3_PORT:-9000}:9000"
-      - "127.0.0.1:9011:9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
@@ -118,15 +107,15 @@ services:
       MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD phải đặt trong .env}"
       S3_BUCKET: ${S3_BUCKET:-uaemcrm-attachments}
 
-  # Reverse proxy + HTTPS tự động (Let's Encrypt). Bật: --profile caddy
+  # HTTPS tự động (Let's Encrypt). Bật: --profile caddy. Cần cổng 80 + 443 TRỐNG.
   caddy:
     image: caddy:2-alpine
     container_name: uaemcrm-caddy
     restart: unless-stopped
     profiles: [caddy]
     ports:
-      - "80:80"
-      - "443:443"
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN phải đặt trong .env khi dùng caddy}
       S3_DOMAIN: ${S3_DOMAIN:?S3_DOMAIN phải đặt trong .env khi dùng caddy}

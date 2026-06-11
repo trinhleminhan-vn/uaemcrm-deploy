@@ -1,0 +1,18 @@
+# Override cho chế độ DÙNG REVERSE PROXY SẴN CÓ của bạn (nginx/Caddy/Traefik/Cloudflare Tunnel…)
+# — KHÔNG dùng Caddy tích hợp (vd khi 80/443 đã bận).
+#
+# Dùng:
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml -p uaemcrm up -d
+#
+# Khi đó mở 2 cổng host để proxy của bạn trỏ vào:
+#   - app:   ${APP_BIND:-127.0.0.1}:${APP_PORT:-3000} → ứng dụng (proxy → APP_DOMAIN)
+#   - minio: ${S3_BIND:-127.0.0.1}:${S3_PORT:-9000}   → kho file (proxy → S3_DOMAIN)
+# Mặc định bind 127.0.0.1 (proxy chạy CÙNG máy). Proxy ở máy khác → đặt APP_BIND/S3_BIND=0.0.0.0
+# (và tự lo tường lửa). Cấu hình proxy của bạn phải dùng HTTPS cho cả 2 domain.
+services:
+  app:
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
+  minio:
+    ports:
+      - "${S3_BIND:-127.0.0.1}:${S3_PORT:-9000}:9000"
