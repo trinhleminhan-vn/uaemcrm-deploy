@@ -1,0 +1,167 @@
+# ════════════════════════════════════════════════════════════════════════════
+# UAEM CRM — docker-compose phát hành (dùng IMAGE dựng sẵn, KHÔNG build từ source)
+# Dành cho khách hàng tự cài trên VPS của họ. Xem README.md cùng thư mục.
+#
+#   Cài đặt:  ./install.sh
+#   Cập nhật: ./update.sh
+#
+# Reverse proxy + HTTPS: dùng dịch vụ `caddy` (tự xin chứng chỉ Let's Encrypt theo
+# domain). Bật bằng:  docker compose --profile caddy up -d
+# ════════════════════════════════════════════════════════════════════════════
+services:
+  app:
+    image: ${UAEMCRM_IMAGE:-ghcr.io/trinhleminhan-vn/uaemcrm:latest}
+    container_name: uaemcrm-app
+    restart: unless-stopped
+    mem_limit: 768m
+    # Mặc định chỉ mở cổng trên loopback — Caddy proxy ra ngoài. Không dùng Caddy
+    # thì đổi sang "${APP_PORT:-3000}:3000" và tự đặt reverse proxy.
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${DB_USER:-crmuser}:${DB_PASSWORD}@db:5432/${DB_NAME:-uaemcrm}
+      - S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}
+      - S3_PUBLIC_URL=${S3_PUBLIC_URL}
+      - S3_BUCKET=${S3_BUCKET:-uaemcrm-attachments}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-${MINIO_ROOT_USER}}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      - AUTOMATION_STUB_MODE=${AUTOMATION_STUB_MODE:-false}
+      - BACKUP_DIR=/var/lib/zalo-crm/files/backups
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - file_storage:/var/lib/zalo-crm/files
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  db:
+    image: postgres:16-alpine
+    container_name: uaemcrm-db
+    restart: unless-stopped
+    mem_limit: 320m
+    environment:
+      POSTGRES_USER: ${DB_USER:-crmuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD phải đặt trong .env}
+      POSTGRES_DB: ${DB_NAME:-uaemcrm}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-crmuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres -c shared_buffers=128MB -c effective_cache_size=256MB -c max_connections=50
+
+  redis:
+    image: redis:7-alpine
+    container_name: uaemcrm-redis
+    restart: unless-stopped
+    mem_limit: 96m
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  minio:
+    image: minio/minio:latest
+    container_name: uaemcrm-minio
+    restart: unless-stopped
+    mem_limit: 320m
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     "${MINIO_ROOT_USER:?MINIO_ROOT_USER phải đặt trong .env}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD phải đặt trong .env}"
+    volumes:
+      - minio_data:/data
+    # S3 API (9000) được Caddy proxy ra S3_DOMAIN (HTTPS). Console (9001) chỉ loopback.
+    ports:
+      - "127.0.0.1:${S3_PORT:-9000}:9000"
+      - "127.0.0.1:9011:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: uaemcrm-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing local/${S3_BUCKET:-uaemcrm-attachments};
+      mc anonymous set download local/${S3_BUCKET:-uaemcrm-attachments};
+      exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER:     "${MINIO_ROOT_USER:?MINIO_ROOT_USER phải đặt trong .env}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD phải đặt trong .env}"
+      S3_BUCKET: ${S3_BUCKET:-uaemcrm-attachments}
+
+  # Reverse proxy + HTTPS tự động (Let's Encrypt). Bật: --profile caddy
+  caddy:
+    image: caddy:2-alpine
+    container_name: uaemcrm-caddy
+    restart: unless-stopped
+    profiles: [caddy]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN phải đặt trong .env khi dùng caddy}
+      S3_DOMAIN: ${S3_DOMAIN:?S3_DOMAIN phải đặt trong .env khi dùng caddy}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+      - minio
+
+  # Backup DB định kỳ (tuỳ chọn). Bật: --profile backup
+  backup:
+    image: prodrigestivill/postgres-backup-local
+    container_name: uaemcrm-backup
+    restart: unless-stopped
+    profiles: [backup]
+    volumes:
+      - ./backups:/backups
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${DB_NAME:-uaemcrm}
+      POSTGRES_USER: ${DB_USER:-crmuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 3
+    depends_on:
+      - db
+
+volumes:
+  pg_data:
+  file_storage:
+  redis_data:
+  minio_data:
+  caddy_data:
+  caddy_config:

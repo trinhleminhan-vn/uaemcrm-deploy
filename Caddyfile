@@ -1,0 +1,15 @@
+# Caddy — reverse proxy + HTTPS tự động (Let's Encrypt) cho UAEM CRM.
+# Domain lấy từ biến môi trường APP_DOMAIN / S3_DOMAIN (đặt trong .env).
+# Caddy tự xin & gia hạn chứng chỉ — không cần cấu hình cert thủ công.
+
+# Ứng dụng CRM
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# Kho file (MinIO S3) — Zalo CDN + trình duyệt tải ảnh/video qua đây
+{$S3_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy minio:9000
+}
