@@ -28,9 +28,16 @@ echo "  ✓ backup xong ($(du -h "backups/db-${STAMP}.sql.gz" | cut -f1))"
 
 # 3) Cập nhật file compose từ repo deploy (để nhận thay đổi compose của bản mới)
 BASE="${DEPLOY_BASE_URL:-https://raw.githubusercontent.com/trinhleminhan-vn/uaemcrm-deploy/main}"
-for f in docker-compose.yml docker-compose.proxy.yml Caddyfile; do
+for f in docker-compose.yml docker-compose.proxy.yml Caddyfile auto-update.sh; do
   curl -fsSL "$BASE/$f" -o "$f" 2>/dev/null || true
 done
+chmod +x auto-update.sh 2>/dev/null || true
+# Đăng ký tác vụ tự-động-cập-nhật (idempotent) — chỉ thực sự chạy khi BẬT toggle trong app.
+if command -v crontab >/dev/null 2>&1; then
+  _DIR="$(pwd)"
+  _LINE="*/5 * * * * cd $_DIR && ./auto-update.sh >> $_DIR/auto-update.log 2>&1"
+  ( crontab -l 2>/dev/null | grep -v 'auto-update.sh'; echo "$_LINE" ) | crontab - 2>/dev/null || true
+fi
 
 # 4) Kéo image mới + khởi động đúng CHẾ ĐỘ (caddy / proxy ngoài). Migration tự áp khi start.
 MODE=$(grep -E '^DEPLOY_MODE=' .env | cut -d= -f2- || echo caddy)

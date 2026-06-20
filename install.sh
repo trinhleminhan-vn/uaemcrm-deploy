@@ -34,10 +34,10 @@ mkdir -p "$DIR"; cd "$DIR"
 echo "→ Thư mục cài đặt: $DIR"
 
 # ── Tải file cấu hình nếu thiếu ───────────────────────────────────────────────
-for f in docker-compose.yml docker-compose.proxy.yml Caddyfile .env.example update.sh; do
+for f in docker-compose.yml docker-compose.proxy.yml Caddyfile .env.example update.sh auto-update.sh; do
   [ -f "$f" ] || { echo "→ Tải $f"; curl -fsSL "$DEPLOY_BASE_URL/$f" -o "$f"; }
 done
-chmod +x update.sh 2>/dev/null || true
+chmod +x update.sh auto-update.sh 2>/dev/null || true
 [ -f .env ] || cp .env.example .env
 
 setkv() { sed -i.bak "s|^$1=.*|$1=$2|" .env && rm -f .env.bak; }
@@ -107,6 +107,15 @@ if [ "$MODE" = "caddy" ]; then
   docker compose -p uaemcrm --profile caddy up -d
 else
   docker compose -f docker-compose.yml -f docker-compose.proxy.yml -p uaemcrm up -d
+fi
+
+# ── Đăng ký tác vụ tự-động-cập-nhật (chỉ chạy khi BẬT toggle trong app) ───────
+chmod +x auto-update.sh 2>/dev/null || true
+if command -v crontab >/dev/null 2>&1; then
+  _DIR="$(cd "$(dirname "$0")" && pwd)"
+  _LINE="*/5 * * * * cd $_DIR && ./auto-update.sh >> $_DIR/auto-update.log 2>&1"
+  ( crontab -l 2>/dev/null | grep -v 'auto-update.sh'; echo "$_LINE" ) | crontab - 2>/dev/null \
+    && echo "→ Đã đăng ký tác vụ cập nhật (kiểm tra mỗi 5 phút; chỉ chạy khi bạn bấm 'Cập nhật ngay' hoặc BẬT tự-động trong Cài đặt → Phiên bản & Cập nhật)." || true
 fi
 
 echo "════════════════════════════════════════════"
