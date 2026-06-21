@@ -26,12 +26,24 @@ echo "→ Backup DB → backups/db-${STAMP}.sql.gz"
 docker compose -p uaemcrm exec -T db pg_dump -U "${DB_USER:-crmuser}" "${DB_NAME:-uaemcrm}" | gzip > "backups/db-${STAMP}.sql.gz"
 echo "  ✓ backup xong ($(du -h "backups/db-${STAMP}.sql.gz" | cut -f1))"
 
+# 2b) TỰ DỌN bản rollback cũ — chỉ giữ N bản mới nhất (mặc định 7; đổi qua BACKUP_KEEP trong .env).
+#     Tránh cập nhật nhiều lần làm phình thư mục backups/.
+KEEP=$(grep -E '^BACKUP_KEEP=' .env 2>/dev/null | cut -d= -f2- || true); KEEP=${KEEP:-7}
+OLD=$(ls -t backups/db-*.sql.gz 2>/dev/null | tail -n +"$((KEEP + 1))" || true)
+if [ -n "$OLD" ]; then
+  echo "→ Dọn bản rollback cũ (giữ ${KEEP} mới nhất):"
+  echo "$OLD" | while IFS= read -r f; do [ -n "$f" ] && { echo "   xoá $f"; rm -f "$f"; }; done
+fi
+
 # 3) Cập nhật file compose từ repo deploy (để nhận thay đổi compose của bản mới)
 BASE="${DEPLOY_BASE_URL:-https://raw.githubusercontent.com/trinhleminhan-vn/uaemcrm-deploy/main}"
-for f in docker-compose.yml docker-compose.proxy.yml Caddyfile auto-update.sh; do
+for f in docker-compose.yml docker-compose.proxy.yml Caddyfile auto-update.sh cleanup-backups.sh; do
   curl -fsSL "$BASE/$f" -o "$f" 2>/dev/null || true
 done
-chmod +x auto-update.sh 2>/dev/null || true
+chmod +x auto-update.sh cleanup-backups.sh 2>/dev/null || true
+# Tự cập nhật CHÍNH update.sh — tải về bản tạm, THAY ở cuối script (tránh ghi đè khi đang chạy);
+# áp dụng từ lần chạy kế tiếp.
+curl -fsSL "$BASE/update.sh" -o ".update.sh.next" 2>/dev/null && [ -s .update.sh.next ] || rm -f .update.sh.next
 # Đăng ký tác vụ tự-động-cập-nhật (idempotent) — chỉ thực sự chạy khi BẬT toggle trong app.
 if command -v crontab >/dev/null 2>&1; then
   _DIR="$(pwd)"
@@ -58,3 +70,6 @@ echo "   Log: docker compose -p uaemcrm logs -f app"
 echo "   Backup (điểm rollback): backups/db-${STAMP}.sql.gz"
 echo "   Nếu cần lùi: đổi UAEMCRM_IMAGE về tag cũ trong .env → ./update.sh; (nặng) nạp lại backup nếu schema đã đổi."
 echo "════════════════════════════════════════════"
+
+# Thay update.sh bằng bản mới đã tải (nếu có) — bước CUỐI cùng để không hỏng lần chạy hiện tại.
+[ -f .update.sh.next ] && mv -f .update.sh.next update.sh && chmod +x update.sh 2>/dev/null || true

@@ -34,10 +34,10 @@ mkdir -p "$DIR"; cd "$DIR"
 echo "→ Thư mục cài đặt: $DIR"
 
 # ── Tải file cấu hình nếu thiếu ───────────────────────────────────────────────
-for f in docker-compose.yml docker-compose.proxy.yml Caddyfile .env.example update.sh auto-update.sh; do
+for f in docker-compose.yml docker-compose.proxy.yml Caddyfile .env.example update.sh auto-update.sh cleanup-backups.sh; do
   [ -f "$f" ] || { echo "→ Tải $f"; curl -fsSL "$DEPLOY_BASE_URL/$f" -o "$f"; }
 done
-chmod +x update.sh auto-update.sh 2>/dev/null || true
+chmod +x update.sh auto-update.sh cleanup-backups.sh 2>/dev/null || true
 [ -f .env ] || cp .env.example .env
 
 setkv() { sed -i.bak "s|^$1=.*|$1=$2|" .env && rm -f .env.bak; }
