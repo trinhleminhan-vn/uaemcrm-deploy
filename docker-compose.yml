@@ -27,6 +27,7 @@ services:
       - S3_SECRET_KEY=${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
       - AUTOMATION_STUB_MODE=${AUTOMATION_STUB_MODE:-false}
       - BACKUP_DIR=/var/lib/zalo-crm/files/backups
+      - CLI_BACKUP_DIR=/var/lib/zalo-crm/cli-backups
     depends_on:
       db:
         condition: service_healthy
@@ -34,6 +35,8 @@ services:
         condition: service_healthy
     volumes:
       - file_storage:/var/lib/zalo-crm/files
+      # Backup rollback do update.sh tạo (host ./backups) — để app hiện/xoá trong web.
+      - ./backups:/var/lib/zalo-crm/cli-backups
     tmpfs:
       - /tmp
     security_opt:
@@ -101,10 +104,10 @@ services:
       - |
         mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
         mc mb --ignore-existing local/${S3_BUCKET:-uaemcrm-attachments}
-        printf '%s' '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::${S3_BUCKET:-uaemcrm-attachments}/*"]}]}' > /tmp/getonly.json
-        mc anonymous set-json /tmp/getonly.json local/${S3_BUCKET:-uaemcrm-attachments}
-    # BẢO MẬT (2026-06-20): ẩn danh CHỈ s3:GetObject (tải theo link chính xác cho Zalo CDN),
-    # KHÔNG cho ListBucket → chặn liệt kê toàn bộ file. Upload ẩn danh vẫn TẮT.
+        mc anonymous set none local/${S3_BUCKET:-uaemcrm-attachments}
+    # BẢO MẬT (2026-06-20, flip PRIVATE): bucket KHÔNG cho truy cập ẩn danh (kể cả GetObject).
+    # Mọi media phục vụ qua media-proxy ký HMAC + hạn ≤2 ngày; backend đọc bằng khoá nội bộ.
+    # Người ngoài biết đúng key cũng KHÔNG tải được (403). Upload ẩn danh vẫn TẮT.
     environment:
       MINIO_ROOT_USER:     "${MINIO_ROOT_USER:?MINIO_ROOT_USER phải đặt trong .env}"
       MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD phải đặt trong .env}"
