@@ -4,6 +4,11 @@ Tất cả thay đổi đáng chú ý của UAEM CRM được ghi lại tại đ
 
 Quy ước phiên bản & cách ghi changelog: [docs/van-hanh/phien-ban.md](docs/van-hanh/phien-ban.md).
 
+## [3.38.8] - 2026-06-22
+- **Bấm thông báo "Có phiên bản mới" → mở thẳng trang cập nhật** (`/settings/dev/version`) thay vì không làm gì.
+- **Ghi chú bản (changelog) cho gắn LINK bấm được:** link trong ghi chú nay có màu + mở tab mới. Ví dụ: xem
+  [Hướng dẫn chia nhân viên](/hdsd/23-chia-nhan-vien-quyen-xem-hoi-thoai). Cứ thêm `[chữ](đường-dẫn)` vào CHANGELOG là bấm được.
+
 ## [3.38.7] - 2026-06-22
 - **HDSD mới "Chia nhân viên & ai thấy hội thoại nào"** (`/hdsd/23-chia-nhan-vien-quyen-xem-hoi-thoai`): hướng
   dẫn A–Z cho người mới — 4 lớp quyết định (nhóm quyền → quyền nick → khoá → phân chia), từng bước tạo nhân
