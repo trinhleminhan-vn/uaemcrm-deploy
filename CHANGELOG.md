@@ -4,6 +4,15 @@ Tất cả thay đổi đáng chú ý của UAEM CRM được ghi lại tại đ
 
 Quy ước phiên bản & cách ghi changelog: [docs/van-hanh/phien-ban.md](docs/van-hanh/phien-ban.md).
 
+## [3.38.9] - 2026-06-23
+- **Copy số trong tin nhắn thông minh hơn:**
+  - **Ưu tiên nhận diện SĐT Việt Nam** — viết kiểu `0901 234 567`, `0901.234.567`, `+84 90 123 4567`… đều
+    bấm là copy ra bản chuẩn `0901234567` (tự đổi `84/+84` → `0`).
+  - **Số ở 2 dòng khác nhau = 2 mục copy RIÊNG** (trước đây bị gộp dính thành một khối, copy ra cả cục).
+  - **Hạ ngưỡng còn ≥ 4 chữ số liên tiếp** (mã OTP/đơn hàng ngắn cũng copy được; trước cần ≥ 6 số).
+  - **Số dính liền chữ vẫn copy được** (vd `ĐH123456` → copy `123456`); trong một đoạn không xuống dòng thì
+    copy trọn từ chữ số đầu đến chữ số cuối. Vẫn bỏ qua số nằm trong email/đường dẫn.
+
 ## [3.38.8] - 2026-06-22
 - **Bấm thông báo "Có phiên bản mới" → mở thẳng trang cập nhật** (`/settings/dev/version`) thay vì không làm gì.
 - **Ghi chú bản (changelog) cho gắn LINK bấm được:** link trong ghi chú nay có màu + mở tab mới. Ví dụ: xem
