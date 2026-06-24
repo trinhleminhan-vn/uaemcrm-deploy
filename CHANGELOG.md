@@ -4,6 +4,15 @@ Tất cả thay đổi đáng chú ý của UAEM CRM được ghi lại tại đ
 
 Quy ước phiên bản & cách ghi changelog: [docs/van-hanh/phien-ban.md](docs/van-hanh/phien-ban.md).
 
+## [3.40.1] - 2026-06-24
+- **Trợ lý AI tạo tự động hoá (mới):** trong Bot-Auto, gõ điều muốn bằng tiếng Việt thường (vd *"Ai nhắn 'báo giá'
+  thì gửi bảng giá, 30 phút sau hỏi đã xem chưa"*) → AI dựng sẵn cấu hình để **xem trước rồi bấm Tạo** (mặc định
+  để TẮT, bạn chủ động bật). Hỏi về cách dùng CRM cũng được — trợ lý trả lời **ngay trong hệ thống** (dẫn vào đúng
+  trang), nhớ ngữ cảnh hội thoại và tôn trọng con số bạn nêu.
+- **Bot trả lời theo từ khoá hoạt động thật:** thêm so khớp *"tin nhắn CHỨA từ khoá"* (không phân biệt hoa/thường).
+- **Trang "Yêu cầu tính năng":** chủ/quản trị xem các yêu cầu, thống kê theo trạng thái; trợ lý AI tóm tắt yêu cầu
+  vượt khả năng để bạn gửi về nhà phát triển.
+
 ## [3.38.9] - 2026-06-23
 - **Copy số trong tin nhắn thông minh hơn:**
   - **Ưu tiên nhận diện SĐT Việt Nam** — viết kiểu `0901 234 567`, `0901.234.567`, `+84 90 123 4567`… đều
