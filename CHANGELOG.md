@@ -12,6 +12,11 @@ Quy ước phiên bản & cách ghi changelog: [docs/van-hanh/phien-ban.md](docs
   - **Hạ ngưỡng còn ≥ 4 chữ số liên tiếp** (mã OTP/đơn hàng ngắn cũng copy được; trước cần ≥ 6 số).
   - **Số dính liền chữ vẫn copy được** (vd `ĐH123456` → copy `123456`); trong một đoạn không xuống dòng thì
     copy trọn từ chữ số đầu đến chữ số cuối. Vẫn bỏ qua số nằm trong email/đường dẫn.
+- **Thả tim dời sát góc tin nhắn:** nút tim nhanh nay bám **góc dưới bong bóng** (về phía phải cho dễ thao tác)
+  thay vì lơ lửng bên cạnh. Chỗ tim cũ (cạnh nút ⋮) đổi thành **nút Trả lời nhanh** — bấm là trả lời ngay,
+  khỏi mở menu ⋮.
+- **Bấm ô "Trả lời" trên tin → nhảy về tin gốc:** chạm vào phần trích dẫn "↩ Trả lời…" trong một tin sẽ cuộn
+  thẳng tới tin gốc được trả lời và **nháy sáng** để dễ thấy (nếu tin gốc đã cuộn quá xa sẽ báo "cuộn lên xem").
 
 ## [3.38.8] - 2026-06-22
 - **Bấm thông báo "Có phiên bản mới" → mở thẳng trang cập nhật** (`/settings/dev/version`) thay vì không làm gì.
