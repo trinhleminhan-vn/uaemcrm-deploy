@@ -28,6 +28,10 @@ services:
       - AUTOMATION_STUB_MODE=${AUTOMATION_STUB_MODE:-false}
       - BACKUP_DIR=/var/lib/zalo-crm/files/backups
       - CLI_BACKUP_DIR=/var/lib/zalo-crm/cli-backups
+      # Hub yêu cầu tính năng (relay nặc danh -> GitHub). CHỈ gửi khi owner bật 'Chia sẻ' (mặc định TẮT)
+      # VÀ chỉ khi FEATURE_HUB_KEY được đặt (đặt riêng trong .env, KHÔNG để trong repo public).
+      - FEATURE_HUB_URL=${FEATURE_HUB_URL:-https://feedback-intake.trinhleminhan.workers.dev}
+      - FEATURE_HUB_KEY=${FEATURE_HUB_KEY:-}
     depends_on:
       db:
         condition: service_healthy
